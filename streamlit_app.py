@@ -11,6 +11,7 @@ Requires all backend modules in the same directory:
 
 import re
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 from models import (
@@ -1217,25 +1218,23 @@ if analysis is not None and inputs is not None:
             f'<div class="mono" style="font-size:12px; color:{INK}; margin-bottom: 0.75rem;">Compliance Flags</div>',
             unsafe_allow_html=True,
         )
+        flags_html = ""
         for f in compliance_flags:
-            tile_class = "flag-tile flag-tile-critical" if f.status == "critical" else "flag-tile"
-            tag_class  = "flag-tag flag-tag-critical" if f.status == "critical" else "flag-tag"
-            tag_html   = f'<span class="{tag_class}">{f.tag}</span>' if f.tag else ""
-            st.markdown(
-                f'''
-                <div class="{tile_class}" style="border-left-color: {f.color};">
-                    <div style="font-size:18px; line-height:1.2; flex-shrink:0; margin-top:1px; color:{f.color};">{f.icon}</div>
-                    <div style="flex:1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <div style="font-family:Space Mono,monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:#1a1a1a; font-weight:700;">{f.label}</div>
-                            {tag_html}
-                        </div>
-                        <div style="font-family:Inter,sans-serif; font-size:13px; color:#5a5a5a; line-height:1.5;">{f.detail}</div>
-                    </div>
-                </div>
-                ''',
-                unsafe_allow_html=True,
-            )
+            border_style = f"border: 2px solid {f.color}; border-left-width: 4px;" if f.status == "critical" else f"border: 1px solid #e4e2dc; border-left: 4px solid {f.color};"
+            tag_bg = f.color if f.status == "critical" else "rgba(0,0,0,0.06)"
+            tag_color = "white" if f.status == "critical" else "#5a5a5a"
+            tag_html = f'<span style="font-family:Space Mono,monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.1em; padding:2px 6px; border-radius:2px; background:{tag_bg}; color:{tag_color};">{f.tag}</span>' if f.tag else ""
+            flags_html += f'''<div style="{border_style} border-radius:4px; padding:0.85rem 1rem; margin-bottom:0.6rem; display:flex; align-items:flex-start; gap:0.75rem;">
+<div style="font-size:18px; line-height:1.2; flex-shrink:0; margin-top:1px; color:{f.color};">{f.icon}</div>
+<div style="flex:1;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<div style="font-family:Space Mono,monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:#1a1a1a; font-weight:700;">{f.label}</div>
+{tag_html}
+</div>
+<div style="font-family:Inter,sans-serif; font-size:13px; color:#5a5a5a; line-height:1.5;">{f.detail}</div>
+</div>
+</div>'''
+        st.markdown(flags_html, unsafe_allow_html=True)
 
     with nc:
         st.markdown(
@@ -1256,17 +1255,17 @@ if analysis is not None and inputs is not None:
                 start = m.end()
                 end   = matches[i + 1].start() if i + 1 < len(matches) else len(narrative_text)
                 body  = narrative_text[start:end].strip()
-                narrative_inner += f'''
-                <div class="narrative-section">
-                    <div class="narrative-section-head">
-                        <div class="narrative-number">{int(num):02d}</div>
-                        <div class="narrative-section-title">{title}</div>
-                    </div>
-                    <div class="narrative-text">{body}</div>
-                </div>
-                '''
+                narrative_inner += (
+                    f'<div class="section">' 
+                    f'<div class="section-head">' 
+                    f'<div class="num">{int(num):02d}</div>' 
+                    f'<div class="sec-title">{title}</div>' 
+                    f'</div>' 
+                    f'<div class="sec-body">{body}</div>' 
+                    f'</div>'
+                )
         else:
-            narrative_inner = f'<div class="narrative-fallback">{narrative_text}</div>'
+            narrative_inner = f'<div class="sec-body" style="white-space:pre-wrap;">{narrative_text}</div>'
 
         cap_callout_inner = ""
         if rec_result["cap_triggered"]:
@@ -1276,24 +1275,37 @@ if analysis is not None and inputs is not None:
                 '</div>'
             )
 
-        st.markdown(
-            f'''
-            <div class="narrative-card">
-                <div class="narrative-header">
-                    <div class="narrative-title">Supplier Evaluation Brief</div>
-                    <div class="narrative-source">
-                        <div class="narrative-source-dot"></div>
-                        Generated by Claude
-                    </div>
-                </div>
-                {cap_callout_inner}
-                <div class="narrative-body">
-                    {narrative_inner}
-                </div>
-            </div>
-            ''',
-            unsafe_allow_html=True,
-        )
+        narrative_html = f'''
+<!DOCTYPE html><html><head><style>
+body {{ margin:0; padding:0; font-family:Inter,sans-serif; background:transparent; }}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+.card {{ background:#faf9f5; border:1px solid #e4e2dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.03); overflow:hidden; }}
+.card-header {{ display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1.25rem; border-bottom:1px solid #e4e2dc; background:white; }}
+.card-title {{ font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#1a1a1a; font-weight:700; }}
+.card-source {{ display:flex; align-items:center; gap:6px; font-family:'Space Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#9a9a9a; }}
+.dot {{ width:6px; height:6px; border-radius:50%; background:#c94a1e; }}
+.card-body {{ padding:1.5rem 1.75rem; }}
+.section {{ margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px solid #e4e2dc; }}
+.section:last-child {{ margin-bottom:0; padding-bottom:0; border-bottom:none; }}
+.section-head {{ display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem; }}
+.num {{ width:24px; height:24px; border-radius:50%; border:1.5px solid #c94a1e; color:#c94a1e; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
+.sec-title {{ font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#1a1a1a; font-weight:700; }}
+.sec-body {{ font-family:'Inter',sans-serif; font-size:14px; color:#1a1a1a; line-height:1.65; margin-left:36px; white-space:pre-wrap; }}
+.callout {{ background:#FFF9E6; border-left:4px solid #c94a1e; padding:0.85rem 1.25rem; margin-bottom:1rem; border-radius:0 4px 4px 0; font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#6B4A00; }}
+</style></head><body>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Supplier Evaluation Brief</div>
+    <div class="card-source"><div class="dot"></div>Generated by Claude</div>
+  </div>
+  {cap_callout_inner}
+  <div class="card-body">{narrative_inner}</div>
+</div>
+</body></html>'''
+
+        # Estimate height based on content length
+        narrative_height = max(400, min(1200, 300 + len(narrative_text) // 3))
+        components.html(narrative_html, height=narrative_height, scrolling=False)
 
         # ---- Sensitivity card (filtered to positive deltas only) ----
         positive_scenarios = [s for s in sensitivity if s.get("delta", 0) > 0]
@@ -1520,16 +1532,16 @@ if len(comparison_list) >= 2:
                 best_supplier = sr["supplier_name"]
         mode_winners[mode.value] = (best_supplier, best_score)
 
-    mode_html = '<div style="display:flex; gap:1rem;">'
+    mode_cards = ""
     for mode_name, (winner, score) in mode_winners.items():
-        mode_html += f'''
-        <div style="flex:1; background:white; border:1px solid {RULE}; border-radius:6px; padding:0.85rem 1rem;">
-            <div style="font-family:Space Mono,monospace; font-size:10px; color:#9a9a9a; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:0.4rem;">{mode_name}</div>
-            <div style="font-family:Inter; font-size:14px; font-weight:600; color:{INK};">{winner}</div>
-            <div style="font-family:Space Mono; font-size:11px; color:{ACCENT}; margin-top:0.2rem;">Composite {score:.1f}</div>
-        </div>
-        '''
-    mode_html += "</div>"
+        mode_cards += (
+            f'<div style="flex:1; background:white; border:1px solid #e4e2dc; border-radius:6px; padding:0.85rem 1rem;">' 
+            f'<div style="font-family:Space Mono,monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#9a9a9a; margin-bottom:0.4rem;">{mode_name}</div>' 
+            f'<div style="font-family:Inter,sans-serif; font-size:14px; font-weight:600; color:#1a1a1a;">{winner}</div>' 
+            f'<div style="font-family:Space Mono,monospace; font-size:11px; color:#c94a1e; margin-top:0.2rem;">Composite {score:.1f}</div>' 
+            f'</div>'
+        )
+    mode_html = f'<div style="display:flex; gap:1rem;">{mode_cards}</div>'
     st.markdown(mode_html, unsafe_allow_html=True)
 
     # ---- Comparative AI narrative ----

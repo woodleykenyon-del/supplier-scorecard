@@ -1224,13 +1224,13 @@ if analysis is not None and inputs is not None:
             st.markdown(
                 f'''
                 <div class="{tile_class}" style="border-left-color: {f.color};">
-                    <div class="flag-icon" style="color: {f.color};">{f.icon}</div>
-                    <div class="flag-body">
-                        <div class="flag-header">
-                            <div class="flag-cert">{f.label}</div>
+                    <div style="font-size:18px; line-height:1.2; flex-shrink:0; margin-top:1px; color:{f.color};">{f.icon}</div>
+                    <div style="flex:1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <div style="font-family:Space Mono,monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:#1a1a1a; font-weight:700;">{f.label}</div>
                             {tag_html}
                         </div>
-                        <div class="flag-detail">{f.detail}</div>
+                        <div style="font-family:Inter,sans-serif; font-size:13px; color:#5a5a5a; line-height:1.5;">{f.detail}</div>
                     </div>
                 </div>
                 ''',
@@ -1524,7 +1524,7 @@ if len(comparison_list) >= 2:
     for mode_name, (winner, score) in mode_winners.items():
         mode_html += f'''
         <div style="flex:1; background:white; border:1px solid {RULE}; border-radius:6px; padding:0.85rem 1rem;">
-            <div class="mono" style="font-size:10px; color:{INK_FAINT}; margin-bottom:0.4rem;">{mode_name}</div>
+            <div style="font-family:Space Mono,monospace; font-size:10px; color:#9a9a9a; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:0.4rem;">{mode_name}</div>
             <div style="font-family:Inter; font-size:14px; font-weight:600; color:{INK};">{winner}</div>
             <div style="font-family:Space Mono; font-size:11px; color:{ACCENT}; margin-top:0.2rem;">Composite {score:.1f}</div>
         </div>

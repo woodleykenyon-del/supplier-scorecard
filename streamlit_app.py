@@ -1202,10 +1202,36 @@ if analysis is not None and inputs is not None:
             font=dict(family="Inter", size=12, color=INK),
         )
         st.plotly_chart(sankey, use_container_width=True, config={"displayModeBar": False})
+        # Color key
         st.markdown(
-            f'<div style="font-family:Inter; font-size:12px; color:{INK_MUTED}; margin-top:0.5rem;">'
-            f'Link thickness = weighted contribution to the next layer. Node color reflects underlying score.'
-            f'</div>',
+            f'''<div style="display:flex; align-items:center; gap:1.5rem; margin-top:0.75rem; flex-wrap:wrap;">
+                <div style="font-family:Inter,sans-serif; font-size:12px; color:{INK_MUTED};">
+                    <strong>Link thickness</strong> = weighted contribution to next layer.
+                    <strong>Node color</strong> = underlying score:
+                </div>
+                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <div style="width:14px; height:14px; border-radius:2px; background:#2E7D32;"></div>
+                        <span style="font-family:Inter,sans-serif; font-size:11px; color:{INK_MUTED};">High (80+)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <div style="width:14px; height:14px; border-radius:2px; background:#8BC34A;"></div>
+                        <span style="font-family:Inter,sans-serif; font-size:11px; color:{INK_MUTED};">Good (60–79)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <div style="width:14px; height:14px; border-radius:2px; background:#FFC107;"></div>
+                        <span style="font-family:Inter,sans-serif; font-size:11px; color:{INK_MUTED};">Moderate (40–59)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <div style="width:14px; height:14px; border-radius:2px; background:#FF7043;"></div>
+                        <span style="font-family:Inter,sans-serif; font-size:11px; color:{INK_MUTED};">Low (20–39)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <div style="width:14px; height:14px; border-radius:2px; background:#c94a1e;"></div>
+                        <span style="font-family:Inter,sans-serif; font-size:11px; color:{INK_MUTED};">Critical (&lt;20)</span>
+                    </div>
+                </div>
+            </div>'''.format(INK_MUTED=INK_MUTED, INK=INK),
             unsafe_allow_html=True,
         )
 
@@ -1338,19 +1364,21 @@ body {{ margin:0; padding:0; font-family:Inter,sans-serif; background:transparen
 
     # ---- Add to comparison ----
     st.markdown('<div class="section-label">Comparison Table</div>', unsafe_allow_html=True)
-    ac1, ac2, ac3 = st.columns([1, 1, 3])
-    with ac1:
-        existing_names = [c["score_result"]["supplier_name"] for c in st.session_state["comparison"]]
-        can_add = (
-            len(st.session_state["comparison"]) < 5
-            and score_result["supplier_name"] not in existing_names
-        )
-        add_disabled_reason = ""
-        if len(st.session_state["comparison"]) >= 5:
-            add_disabled_reason = "Comparison full (5 max)"
-        elif score_result["supplier_name"] in existing_names:
-            add_disabled_reason = "Already in comparison"
 
+    # --- Add button row ---
+    existing_names = [c["score_result"]["supplier_name"] for c in st.session_state["comparison"]]
+    can_add = (
+        len(st.session_state["comparison"]) < 5
+        and score_result["supplier_name"] not in existing_names
+    )
+    add_disabled_reason = ""
+    if len(st.session_state["comparison"]) >= 5:
+        add_disabled_reason = "Comparison full (5 max)"
+    elif score_result["supplier_name"] in existing_names:
+        add_disabled_reason = "Already in comparison"
+
+    btn_col, clear_col, _ = st.columns([1, 1, 3])
+    with btn_col:
         if st.button("Add to Comparison", disabled=not can_add, key="add_compare"):
             st.session_state["comparison"].append(analysis)
             st.rerun()
@@ -1359,11 +1387,36 @@ body {{ margin:0; padding:0; font-family:Inter,sans-serif; background:transparen
                 f'<div style="font-family:Inter; font-size:11px; color:{INK_FAINT}; margin-top:0.25rem;">{add_disabled_reason}</div>',
                 unsafe_allow_html=True,
             )
-    with ac2:
+    with clear_col:
         if st.session_state["comparison"]:
-            if st.button("Clear Comparison Table", key="clear_compare"):
+            if st.button("Clear All", key="clear_compare"):
                 st.session_state["comparison"] = []
                 st.rerun()
+
+    # --- Supplier chips: show what's loaded, with individual remove buttons ---
+    if st.session_state["comparison"]:
+        st.markdown(
+            f'<div style="font-family:Space Mono,monospace; font-size:10px; text-transform:uppercase; '            f'letter-spacing:0.12em; color:{INK_MUTED}; margin:0.75rem 0 0.4rem;">Loaded for comparison ({len(st.session_state["comparison"])}/5)</div>',
+            unsafe_allow_html=True,
+        )
+        chip_cols = st.columns(min(5, len(st.session_state["comparison"])))
+        for i, entry in enumerate(st.session_state["comparison"]):
+            name = entry["score_result"]["supplier_name"]
+            band = entry["score_result"]["rating_band"]
+            score = entry["score_result"]["composite_score"]
+            with chip_cols[i]:
+                st.markdown(
+                    f'<div style="background:{band["bg_color"]}; border:1px solid {band["text_color"]}33; '                    f'border-radius:4px; padding:8px 10px; margin-bottom:4px;">'                    f'<div style="font-family:Space Mono,monospace; font-size:10px; text-transform:uppercase; '                    f'letter-spacing:0.08em; color:{band["text_color"]}; font-weight:700;">{band["label"]}</div>'                    f'<div style="font-family:Inter,sans-serif; font-size:12px; font-weight:600; color:{INK}; '                    f'margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{name}">{name}</div>'                    f'<div style="font-family:Space Mono,monospace; font-size:11px; color:{ACCENT}; margin-top:2px;">{score}</div>'                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"Remove", key=f"remove_chip_{i}"):
+                    st.session_state["comparison"].pop(i)
+                    st.rerun()
+    else:
+        st.markdown(
+            f'<div style="font-family:Inter,sans-serif; font-size:12px; color:{INK_FAINT}; '            f'margin-top:0.5rem; font-style:italic;">No suppliers loaded yet. Score a supplier and click Add to Comparison.</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # =============================================================================

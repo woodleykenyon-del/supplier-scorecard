@@ -1,7 +1,7 @@
 """
 recommendation.py — Supplier Performance & Risk Scorecard
 Deterministic recommendation engine. Ordinal cap logic applied after
-score-based recommendation. AI only explains the result.
+score-based recommendation.
 
 cap_triggered: any compliance cap was active (narrative must surface this).
 cap_escalated: cap actually increased severity beyond score-based result.

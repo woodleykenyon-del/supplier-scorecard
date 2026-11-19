@@ -6,12 +6,12 @@ Run with:
     streamlit run streamlit_app.py
 
 Requires all backend modules in the same directory:
-    models.py, scoring.py, compliance.py, recommendation.py, ai_narrative.py
+    models.py, scoring.py, compliance.py, recommendation.py, evaluation_brief.py
 """
 
-import re
+from html import escape
+
 import streamlit as st
-import streamlit.components.v1 as components
 import plotly.graph_objects as go
 
 from models import (
@@ -25,7 +25,7 @@ from models import (
     GEO_TIERS,
     MODE_LAYER_WEIGHTS,
 )
-from ai_narrative import get_full_analysis, generate_comparison_narrative
+from evaluation_brief import get_full_analysis, summarize_comparison
 
 
 # =============================================================================
@@ -372,103 +372,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
     font-size: 13px;
     color: {INK_MUTED};
     line-height: 1.5;
-}}
-
-/* --- AI narrative card --- */
-.narrative-card {{
-    background: {CREAM_LIGHT};
-    border: 1px solid {RULE};
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
-    overflow: hidden;
-}}
-.narrative-header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.85rem 1.25rem;
-    border-bottom: 1px solid {RULE};
-    background: white;
-}}
-.narrative-title {{
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: {INK};
-    font-weight: 700;
-}}
-.narrative-source {{
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: {INK_FAINT};
-}}
-.narrative-source-dot {{
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: {ACCENT};
-}}
-.narrative-body {{
-    padding: 1.5rem 1.75rem;
-}}
-.narrative-section {{
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid {RULE};
-}}
-.narrative-section:last-child {{
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-}}
-.narrative-section-head {{
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}}
-.narrative-number {{
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1.5px solid {ACCENT};
-    color: {ACCENT};
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}}
-.narrative-section-title {{
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: {INK};
-    font-weight: 700;
-}}
-.narrative-text {{
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: {INK};
-    line-height: 1.65;
-    margin-left: 36px;
-    white-space: pre-wrap;
-}}
-.narrative-fallback {{
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: {INK};
-    line-height: 1.65;
-    white-space: pre-wrap;
 }}
 
 /* --- Sensitivity card --- */
@@ -843,7 +746,7 @@ with st.container(border=True):
         "Analyst Notes (optional)",
         value="",
         height=80,
-        placeholder="Context, recent issues, or program-specific factors. Surfaced in the AI narrative.",
+        placeholder="Optional context for the evaluation. Use fictional details.",
     )
 
 # ---- Primary action ----
@@ -1263,75 +1166,15 @@ if analysis is not None and inputs is not None:
         st.markdown(flags_html, unsafe_allow_html=True)
 
     with nc:
-        st.markdown(
-            f'<div class="mono" style="font-size:12px; color:{INK}; margin-bottom: 0.75rem;">AI Evaluation Brief</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Parse narrative into sections — regex split on numbered headers like "1. SUPPLIER SUMMARY"
-        section_pattern = r'(?m)^\s*(\d+)\.\s+([A-Z][A-Z\s&]+?)\s*\n'
-        narrative_text  = narrative or ""
-        matches = list(re.finditer(section_pattern, narrative_text))
-
-        narrative_inner = ""
-        if matches and len(matches) >= 2:
-            for i, m in enumerate(matches):
-                num   = m.group(1)
-                title = m.group(2).strip()
-                start = m.end()
-                end   = matches[i + 1].start() if i + 1 < len(matches) else len(narrative_text)
-                body  = narrative_text[start:end].strip()
-                narrative_inner += (
-                    f'<div class="section">' 
-                    f'<div class="section-head">' 
-                    f'<div class="num">{int(num):02d}</div>' 
-                    f'<div class="sec-title">{title}</div>' 
-                    f'</div>' 
-                    f'<div class="sec-body">{body}</div>' 
-                    f'</div>'
-                )
-        else:
-            narrative_inner = f'<div class="sec-body" style="white-space:pre-wrap;">{narrative_text}</div>'
-
-        cap_callout_inner = ""
-        if rec_result["cap_triggered"]:
-            cap_callout_inner = (
-                '<div class="cap-callout" style="margin: 0 1.75rem 1rem 1.75rem;">'
-                'This brief incorporates active compliance gaps that affect the final recommendation.'
-                '</div>'
+        st.subheader("Supplier evaluation brief")
+        st.markdown(narrative)
+        if inputs.analyst_notes.strip():
+            st.markdown("**Analyst notes**")
+            st.markdown(
+                f'<p style="white-space:pre-wrap; overflow-wrap:anywhere;">'
+                f'{escape(inputs.analyst_notes)}</p>',
+                unsafe_allow_html=True,
             )
-
-        narrative_html = f'''
-<!DOCTYPE html><html><head><style>
-body {{ margin:0; padding:0; font-family:Inter,sans-serif; background:transparent; }}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
-.card {{ background:#faf9f5; border:1px solid #e4e2dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.03); overflow:hidden; }}
-.card-header {{ display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1.25rem; border-bottom:1px solid #e4e2dc; background:white; }}
-.card-title {{ font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#1a1a1a; font-weight:700; }}
-.card-source {{ display:flex; align-items:center; gap:6px; font-family:'Space Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#9a9a9a; }}
-.dot {{ width:6px; height:6px; border-radius:50%; background:#c94a1e; }}
-.card-body {{ padding:1.5rem 1.75rem; }}
-.section {{ margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px solid #e4e2dc; }}
-.section:last-child {{ margin-bottom:0; padding-bottom:0; border-bottom:none; }}
-.section-head {{ display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem; }}
-.num {{ width:24px; height:24px; border-radius:50%; border:1.5px solid #c94a1e; color:#c94a1e; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }}
-.sec-title {{ font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:#1a1a1a; font-weight:700; }}
-.sec-body {{ font-family:'Inter',sans-serif; font-size:14px; color:#1a1a1a; line-height:1.65; margin-left:36px; white-space:pre-wrap; }}
-.callout {{ background:#FFF9E6; border-left:4px solid #c94a1e; padding:0.85rem 1.25rem; margin-bottom:1rem; border-radius:0 4px 4px 0; font-family:'Space Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#6B4A00; }}
-</style></head><body>
-<div class="card">
-  <div class="card-header">
-    <div class="card-title">Supplier Evaluation Brief</div>
-    <div class="card-source"><div class="dot"></div>Generated by Claude</div>
-  </div>
-  {cap_callout_inner}
-  <div class="card-body">{narrative_inner}</div>
-</div>
-</body></html>'''
-
-        # Estimate height based on content length
-        narrative_height = max(400, min(1200, 300 + len(narrative_text) // 3))
-        components.html(narrative_html, height=narrative_height, scrolling=False)
 
         # ---- Sensitivity card (filtered to positive deltas only) ----
         positive_scenarios = [s for s in sensitivity if s.get("delta", 0) > 0]
@@ -1597,48 +1440,13 @@ if len(comparison_list) >= 2:
     mode_html = f'<div style="display:flex; gap:1rem;">{mode_cards}</div>'
     st.markdown(mode_html, unsafe_allow_html=True)
 
-    # ---- Comparative AI narrative ----
+    st.subheader("Comparative analysis")
+    comparison_summary = summarize_comparison(sorted_comparison)
     st.markdown(
-        f'<div class="mono" style="font-size:11px; color:{INK_MUTED}; margin-top:1.5rem; margin-bottom:0.5rem;">Comparative Analysis</div>',
+        f'<p style="white-space:pre-wrap; overflow-wrap:anywhere;">'
+        f'{escape(comparison_summary)}</p>',
         unsafe_allow_html=True,
     )
-
-    cache_key = tuple(c["score_result"]["supplier_name"] for c in sorted_comparison) + (sort_choice,)
-    if st.session_state.get("comp_narrative_key") != cache_key:
-        with st.spinner("Generating comparative analysis..."):
-            try:
-                comp_narrative = generate_comparison_narrative(sorted_comparison)
-            except Exception:
-                comp_narrative = ""
-        st.session_state["comp_narrative"] = comp_narrative
-        st.session_state["comp_narrative_key"] = cache_key
-    else:
-        comp_narrative = st.session_state["comp_narrative"]
-
-    if comp_narrative:
-        st.markdown(
-            f'''
-            <div class="narrative-card">
-                <div class="narrative-header">
-                    <div class="narrative-title">Cross-Supplier Comparative Analysis</div>
-                    <div class="narrative-source">
-                        <div class="narrative-source-dot"></div>
-                        Generated by Claude
-                    </div>
-                </div>
-                <div class="narrative-body">
-                    <div class="narrative-fallback">{comp_narrative}</div>
-                </div>
-            </div>
-            ''',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f'<div style="font-family:Inter; font-size:13px; color:{INK_MUTED};">'
-            f'Comparative narrative unavailable. Individual supplier briefs above remain valid.</div>',
-            unsafe_allow_html=True,
-        )
 
     # ---- Individual remove controls ----
     st.markdown(
@@ -1651,7 +1459,6 @@ if len(comparison_list) >= 2:
             name = c["score_result"]["supplier_name"]
             if st.button(f"✕  Remove {name}", key=f"rm_{i}_{name}"):
                 st.session_state["comparison"].pop(i)
-                st.session_state.pop("comp_narrative_key", None)
                 st.rerun()
 
 
